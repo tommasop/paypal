@@ -6,6 +6,7 @@ defmodule Paypal.Payment.Info do
 
   alias Paypal.Common.CurrencyValue
   alias Paypal.Common.Link
+  alias Paypal.Common.SellerProtection
   alias Paypal.Order.Payee
 
   @statuses [
@@ -39,8 +40,7 @@ defmodule Paypal.Payment.Info do
     embeds_many(:links, Link)
     embeds_one(:payee, Payee)
     field(:status, Ecto.Enum, values: @statuses)
-    # TODO: seller_protection
-    field(:seller_protection, :map)
+    embeds_one(:seller_protection, SellerProtection)
     # TODO: network_transaction_reference
     field(:network_transaction_reference, :map)
     # TODO: supplementary_data

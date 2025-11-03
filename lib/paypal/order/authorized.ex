@@ -5,10 +5,13 @@ defmodule Paypal.Order.Authorized do
   related to the request.
   """
   use TypedEctoSchema
+  import Ecto.Changeset
 
   alias Paypal.Common.Link
+  alias Paypal.Common.PaymentSource
   alias Paypal.Order
   alias Paypal.Order.Authorization
+  alias Paypal.Order.Payer
 
   @primary_key false
 
@@ -20,8 +23,7 @@ defmodule Paypal.Order.Authorized do
   typed_embedded_schema do
     field(:id, :string, primary_key: true)
     field(:status, Ecto.Enum, values: Order.statuses(), embed_as: :dumped)
-    # TODO
-    field(:payment_source, :map)
+    embeds_one(:payment_source, PaymentSource)
 
     embeds_many :purchase_units, PurchaseUnit, primary_key: false do
       @moduledoc """
@@ -48,8 +50,7 @@ defmodule Paypal.Order.Authorized do
       end
     end
 
-    # TODO
-    field(:payer, :map)
+    embeds_one(:payer, Payer)
     embeds_many(:links, Link)
   end
 

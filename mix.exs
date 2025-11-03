@@ -127,6 +127,14 @@ defmodule Paypal.MixProject do
           Paypal.Payment.Refund,
           Paypal.Payment.RefundRequest
         ],
+        Webhook: [
+          Paypal.Webhook,
+          Paypal.Webhook.Create,
+          Paypal.Webhook.Info,
+          Paypal.Webhook.Event,
+          Paypal.Webhook.EventTypes,
+          Paypal.Webhook.Verification
+        ],
         "Common and Helpers": [
           Paypal.Common.CurrencyValue,
           Paypal.Common.Error,

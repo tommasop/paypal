@@ -6,6 +6,7 @@ defmodule Paypal.Payment.Captured do
 
   alias Paypal.Common.CurrencyValue
   alias Paypal.Common.Link
+  alias Paypal.Common.SellerProtection
   alias Paypal.Common.StatusDetails
   alias Paypal.Order.Payee
 
@@ -64,8 +65,7 @@ defmodule Paypal.Payment.Captured do
     embeds_one(:payee, Payee)
     # TODO: supplementary_data
     field(:supplementary_data, :map)
-    # TODO: seller_protection
-    field(:seller_protection, :map)
+    embeds_one(:seller_protection, SellerProtection)
     # TODO: seller_receivable_breakdown
     field(:seller_receivable_breakdown, :map)
     # TODO: processor_response

@@ -4,20 +4,28 @@ defmodule Paypal.Order.Payer do
   """
   use TypedEctoSchema
 
+  alias Paypal.Common.Name
+  alias Paypal.Common.Address
+
   @primary_key false
 
   @typedoc """
   The information for the payer:
 
   - `payer_id` is the ID in Paypal for the payer.
-  - `name` is a composition of two values: given_name and surname.
+  - `name` is the payer's name information.
   - `email_address` is the email address provided to Paypal for the payment.
-  - `address` is a map that contains at least `country`.
+  - `address` is the payer's address information.
   """
   typed_embedded_schema do
     field(:payer_id, :string, primary_key: true)
-    field(:name, :map)
+    embeds_one(:name, Name)
     field(:email_address, :string)
-    field(:address, :map)
+    embeds_one(:address, Address)
+  end
+
+  @doc false
+  def cast(params) do
+    Ecto.embedded_load(__MODULE__, params, :json)
   end
 end

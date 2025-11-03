@@ -13,5 +13,6 @@ defmodule Paypal do
   - `Paypal.Auth`. We are retrieving an OAuth2 token to perform the calls.
   - `Paypal.Order`. Create orders to be paid by your users.
   - `Paypal.Payment`. Get more control of the payments and refunds.
+  - `Paypal.Webhook`. Manage webhooks for real-time event notifications.
   """
 end

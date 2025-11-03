@@ -25,6 +25,7 @@ defmodule Paypal.Payment.Refund do
   import Ecto.Changeset
   alias Paypal.Common.CurrencyValue
   alias Paypal.Common.Link
+  alias Paypal.Common.SellerProtection
   alias Paypal.Common.StatusDetails
   alias Paypal.Order.Payer
 
@@ -46,8 +47,7 @@ defmodule Paypal.Payment.Refund do
     field(:update_time, :string)
     field(:acquirer_reference_number, :string)
     field(:note_to_payer, :string)
-    # TODO
-    field(:seller_protection, :map)
+    embeds_one(:seller_protection, SellerProtection)
 
     # TODO: seller_payable_breakdown - complex structure with gross_amount, paypal_fee, platform_fees, net_amount, total_refunded_amount
     field(:seller_payable_breakdown, :map)
@@ -63,7 +63,6 @@ defmodule Paypal.Payment.Refund do
      invoice_id
      custom_id
      acquirer_reference_number
-     seller_protection
      note_to_payer
      seller_payable_breakdown
      create_time
@@ -77,6 +76,7 @@ defmodule Paypal.Payment.Refund do
     |> cast_embed(:amount, required: true)
     |> cast_embed(:links)
     |> cast_embed(:payer)
+    |> cast_embed(:seller_protection)
     |> cast_embed(:status_details)
   end
 

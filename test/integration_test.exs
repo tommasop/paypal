@@ -156,9 +156,9 @@ defmodule Paypal.IntegrationTest do
       ],
       payer: %Paypal.Order.Payer{
         payer_id: "JWEUL3HMBVGJ6",
-        name: %{"given_name" => "test", "surname" => "buyer"},
+        name: %Paypal.Common.Name{given_name: "test", surname: "buyer", full_name: nil},
         email_address: "buyer@rich.com",
-        address: %{"country_code" => "ES"}
+        address: %Paypal.Common.Address{country_code: "ES"}
       },
       payment_source: %{
         "paypal" => %{
@@ -277,13 +277,13 @@ defmodule Paypal.IntegrationTest do
     authorized = %Paypal.Order.Authorized{
       id: "5UY53123AX394662R",
       status: :completed,
-      payment_source: %{
-        "paypal" => %{
-          "account_id" => "JWEUL3HMBVGJ6",
-          "account_status" => "VERIFIED",
-          "address" => %{"country_code" => "ES"},
-          "email_address" => "buyer@rich.com",
-          "name" => %{"given_name" => "test", "surname" => "buyer"}
+      payment_source: %Paypal.Common.PaymentSource{
+        paypal: %{
+          account_id: "JWEUL3HMBVGJ6",
+          account_status: "VERIFIED",
+          address: %{"country_code" => "ES"},
+          email_address: "buyer@rich.com",
+          name: %{"given_name" => "test", "surname" => "buyer"}
         }
       },
       purchase_units: [
@@ -298,7 +298,7 @@ defmodule Paypal.IntegrationTest do
                   currency_code: "EUR",
                   value: Decimal.new("10.00")
                 },
-                seller_protection: %Paypal.Order.Authorization.SellerProtection{
+                seller_protection: %Paypal.Common.SellerProtection{
                   status: :eligible,
                   dispute_categories: ["ITEM_NOT_RECEIVED", "UNAUTHORIZED_TRANSACTION"]
                 },
@@ -341,11 +341,11 @@ defmodule Paypal.IntegrationTest do
           }
         }
       ],
-      payer: %{
-        "address" => %{"country_code" => "ES"},
-        "email_address" => "buyer@rich.com",
-        "name" => %{"given_name" => "test", "surname" => "buyer"},
-        "payer_id" => "JWEUL3HMBVGJ6"
+      payer: %Paypal.Order.Payer{
+        payer_id: "JWEUL3HMBVGJ6",
+        name: %Paypal.Common.Name{given_name: "test", surname: "buyer"},
+        email_address: "buyer@rich.com",
+        address: %Paypal.Common.Address{country_code: "ES"}
       },
       links: [
         %Paypal.Common.Link{
@@ -839,9 +839,9 @@ defmodule Paypal.IntegrationTest do
       ],
       payer: %Paypal.Order.Payer{
         payer_id: "JWEUL3HMBVGJ6",
-        name: %{"given_name" => "test", "surname" => "buyer"},
+        name: %Paypal.Common.Name{given_name: "test", surname: "buyer", full_name: nil},
         email_address: "buyer@rich.com",
-        address: %{"country_code" => "ES"}
+        address: %Paypal.Common.Address{country_code: "ES"}
       },
       payment_source: %{
         "paypal" => %{
@@ -960,13 +960,13 @@ defmodule Paypal.IntegrationTest do
     authorized = %Paypal.Order.Authorized{
       id: "5UY53123AX394662R",
       status: :completed,
-      payment_source: %{
-        "paypal" => %{
-          "account_id" => "JWEUL3HMBVGJ6",
-          "account_status" => "VERIFIED",
-          "address" => %{"country_code" => "ES"},
-          "email_address" => "buyer@rich.com",
-          "name" => %{"given_name" => "test", "surname" => "buyer"}
+      payment_source: %Paypal.Common.PaymentSource{
+        paypal: %{
+          account_id: "JWEUL3HMBVGJ6",
+          account_status: "VERIFIED",
+          address: %{"country_code" => "ES"},
+          email_address: "buyer@rich.com",
+          name: %{"given_name" => "test", "surname" => "buyer"}
         }
       },
       purchase_units: [
@@ -981,7 +981,7 @@ defmodule Paypal.IntegrationTest do
                   currency_code: "EUR",
                   value: Decimal.new("10.00")
                 },
-                seller_protection: %Paypal.Order.Authorization.SellerProtection{
+                seller_protection: %Paypal.Common.SellerProtection{
                   status: :eligible,
                   dispute_categories: ["ITEM_NOT_RECEIVED", "UNAUTHORIZED_TRANSACTION"]
                 },
@@ -1024,11 +1024,11 @@ defmodule Paypal.IntegrationTest do
           }
         }
       ],
-      payer: %{
-        "address" => %{"country_code" => "ES"},
-        "email_address" => "buyer@rich.com",
-        "name" => %{"given_name" => "test", "surname" => "buyer"},
-        "payer_id" => "JWEUL3HMBVGJ6"
+      payer: %Paypal.Order.Payer{
+        payer_id: "JWEUL3HMBVGJ6",
+        name: %Paypal.Common.Name{given_name: "test", surname: "buyer"},
+        email_address: "buyer@rich.com",
+        address: %Paypal.Common.Address{country_code: "ES"}
       },
       links: [
         %Paypal.Common.Link{
@@ -1299,9 +1299,9 @@ defmodule Paypal.IntegrationTest do
       ],
       payer: %Paypal.Order.Payer{
         payer_id: "JWEUL3HMBVGJ6",
-        name: %{"given_name" => "test", "surname" => "buyer"},
+        name: %Paypal.Common.Name{given_name: "test", surname: "buyer", full_name: nil},
         email_address: "payment-buyer@altenwald.com",
-        address: %{"country_code" => "ES"}
+        address: %Paypal.Common.Address{country_code: "ES"}
       },
       payment_source: %{
         "paypal" => %{
@@ -1362,5 +1362,100 @@ defmodule Paypal.IntegrationTest do
     }
 
     assert {:ok, ^info} = Paypal.Order.capture(order.id)
+  end
+
+  test "webhook creation and verification", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v1/oauth2/token", fn %Plug.Conn{} = conn ->
+      response(conn, 200, %{
+        "access_token" => "ACCESSTOKEN",
+        "app_id" => "APP-ID",
+        "expires_in" => 32_400,
+        "nonce" => "2024-05-08T22:22:22NONCE",
+        "scope" =>
+          "https://uri.paypal.com/services/payments/futurepayments https://uri.paypal.com/services/invoicing https://uri.paypal.com/services/vault/payment-tokens/read https://uri.paypal.com/services/disputes/read-buyer https://uri.paypal.com/services/payments/realtimepayment https://uri.paypal.com/services/disputes/update-seller https://uri.paypal.com/services/payments/payment/authcapture openid https://uri.paypal.com/services/disputes/read-seller Braintree:Vault https://uri.paypal.com/services/payments/refund https://api.paypal.com/v1/vault/credit-card https://api.paypal.com/v1/payments/.* https://uri.paypal.com/payments/payouts https://uri.paypal.com/services/vault/payment-tokens/readwrite https://api.paypal.com/v1/vault/credit-card/.* https://uri.paypal.com/services/subscriptions https://uri.paypal.com/services/applications/webhooks",
+        "token_type" => "Bearer"
+      })
+    end)
+
+    assert {:error, :notfound} == Paypal.Auth.get_token()
+
+    AuthWorker.refresh()
+    assert "ACCESSTOKEN" == Paypal.Auth.get_token!()
+
+    # Test webhook creation
+    Bypass.expect_once(bypass, "POST", "/v1/notifications/webhooks", fn conn ->
+      response(conn, 201, %{
+        "id" => "WEBHOOK-123456789",
+        "url" => "https://myapp.com/webhooks/paypal",
+        "event_types" => [
+          %{"name" => "PAYMENT.CAPTURE.COMPLETED"},
+          %{"name" => "CHECKOUT.ORDER.APPROVED"}
+        ],
+        "links" => [
+          %{
+            "href" =>
+              "https://api.sandbox.paypal.com/v1/notifications/webhooks/WEBHOOK-123456789",
+            "rel" => "self",
+            "method" => "GET"
+          }
+        ]
+      })
+    end)
+
+    webhook_params = %{
+      url: "https://myapp.com/webhooks/paypal",
+      event_types: ["PAYMENT.CAPTURE.COMPLETED", "CHECKOUT.ORDER.APPROVED"]
+    }
+
+    assert {:ok, webhook_info} = Paypal.Webhook.create(webhook_params)
+    assert webhook_info.id == "WEBHOOK-123456789"
+    assert webhook_info.url == "https://myapp.com/webhooks/paypal"
+    assert length(webhook_info.event_types) == 2
+
+    # Test webhook listing
+    Bypass.expect_once(bypass, "GET", "/v1/notifications/webhooks", fn conn ->
+      response(conn, 200, %{
+        "webhooks" => [
+          %{
+            "id" => "WEBHOOK-123456789",
+            "url" => "https://myapp.com/webhooks/paypal",
+            "event_types" => [
+              %{"name" => "PAYMENT.CAPTURE.COMPLETED"},
+              %{"name" => "CHECKOUT.ORDER.APPROVED"}
+            ]
+          }
+        ]
+      })
+    end)
+
+    assert {:ok, webhooks} = Paypal.Webhook.list()
+    assert length(webhooks) == 1
+    assert hd(webhooks).id == "WEBHOOK-123456789"
+
+    # Test webhook signature verification
+    Bypass.expect_once(bypass, "POST", "/v1/notifications/verify-webhook-signature", fn conn ->
+      response(conn, 200, %{"verification_status" => "SUCCESS"})
+    end)
+
+    webhook_body = %{
+      "id" => "WH-1234567890ABCDEFGH",
+      "event_type" => "PAYMENT.CAPTURE.COMPLETED",
+      "resource" => %{
+        "id" => "CAPTURE-123456789",
+        "status" => "COMPLETED",
+        "amount" => %{"currency_code" => "USD", "value" => "10.00"}
+      }
+    }
+
+    signature_headers = %{
+      "paypal-auth-algo" => "SHA256withRSA",
+      "paypal-cert-url" => "https://api.paypal.com/v1/notifications/certs/CERT-123456789",
+      "paypal-transmission-id" => "TRANSMISSION-123456789",
+      "paypal-transmission-sig" => "SIGNATURE-123456789",
+      "paypal-transmission-time" => "2024-05-08T22:22:22Z",
+      "paypal-webhook-id" => "WEBHOOK-123456789"
+    }
+
+    assert {:ok, :verified} = Paypal.Webhook.verify_signature(webhook_body, signature_headers)
   end
 end

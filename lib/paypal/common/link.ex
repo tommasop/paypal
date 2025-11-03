@@ -38,4 +38,10 @@ defmodule Paypal.Common.Link do
   def cast(params) do
     Ecto.embedded_load(__MODULE__, params, :json)
   end
+
+  @doc false
+  def changeset(struct, params) do
+    struct
+    |> Ecto.Changeset.cast(params, [:href, :rel, :method, :enc_type])
+  end
 end
