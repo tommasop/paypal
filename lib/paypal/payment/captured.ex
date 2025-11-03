@@ -6,6 +6,8 @@ defmodule Paypal.Payment.Captured do
 
   alias Paypal.Common.CurrencyValue
   alias Paypal.Common.Link
+  alias Paypal.Common.StatusDetails
+  alias Paypal.Order.Payee
 
   @statuses [
     completed: "COMPLETED",
@@ -48,8 +50,7 @@ defmodule Paypal.Payment.Captured do
     embeds_many(:links, Link)
     field(:status, Ecto.Enum, values: @statuses, embed_as: :dumped)
 
-    # TODO https://developer.paypal.com/docs/api/payments/v2/#authorizations_capture!c=201&path=status_details/reason&t=response
-    field(:status_details, :map)
+    embeds_one(:status_details, StatusDetails)
 
     field(:disbursement_mode, Ecto.Enum,
       values: @disbursement_modes,
@@ -60,6 +61,15 @@ defmodule Paypal.Payment.Captured do
     embeds_one(:amount, CurrencyValue)
     field(:create_time, :utc_datetime)
     field(:update_time, :utc_datetime)
+    embeds_one(:payee, Payee)
+    # TODO: supplementary_data
+    field(:supplementary_data, :map)
+    # TODO: seller_protection
+    field(:seller_protection, :map)
+    # TODO: seller_receivable_breakdown
+    field(:seller_receivable_breakdown, :map)
+    # TODO: processor_response
+    field(:processor_response, :map)
   end
 
   @doc false

@@ -25,6 +25,7 @@ defmodule Paypal.Payment.Refund do
   import Ecto.Changeset
   alias Paypal.Common.CurrencyValue
   alias Paypal.Common.Link
+  alias Paypal.Common.StatusDetails
   alias Paypal.Order.Payer
 
   @statuses [
@@ -38,7 +39,7 @@ defmodule Paypal.Payment.Refund do
   typed_embedded_schema do
     field(:id, :string)
     field(:status, Ecto.Enum, values: @statuses, embed_as: :dumped)
-    field(:status_details, :string)
+    embeds_one(:status_details, StatusDetails)
     field(:invoice_id, :string)
     field(:custom_id, :string)
     field(:create_time, :string)
@@ -47,7 +48,8 @@ defmodule Paypal.Payment.Refund do
     field(:note_to_payer, :string)
     # TODO
     field(:seller_protection, :map)
-    # TODO
+
+    # TODO: seller_payable_breakdown - complex structure with gross_amount, paypal_fee, platform_fees, net_amount, total_refunded_amount
     field(:seller_payable_breakdown, :map)
 
     embeds_one(:payer, Payer)
@@ -56,18 +58,17 @@ defmodule Paypal.Payment.Refund do
   end
 
   @fields ~w[
-    status
-    status_details
-    id
-    invoice_id
-    custom_id
-    acquirer_reference_number
-    seller_protection
-    note_to_payer
-    seller_payable_breakdown
-    create_time
-    update_time
-  ]a
+     status
+     id
+     invoice_id
+     custom_id
+     acquirer_reference_number
+     seller_protection
+     note_to_payer
+     seller_payable_breakdown
+     create_time
+     update_time
+   ]a
 
   @doc false
   def changeset(model \\ %__MODULE__{}, params) do
@@ -76,6 +77,7 @@ defmodule Paypal.Payment.Refund do
     |> cast_embed(:amount, required: true)
     |> cast_embed(:links)
     |> cast_embed(:payer)
+    |> cast_embed(:status_details)
   end
 
   @doc false

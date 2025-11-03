@@ -17,6 +17,10 @@ defmodule Paypal.MixProject do
       package: package(),
       preferred_cli_env: [
         check: :test
+      ],
+      aliases: [
+        tidewave:
+          "run --no-halt -e 'Agent.start(fn -> Bandit.start_link(plug: Tidewave, port: 4000) end)'"
       ]
     ]
   end
@@ -76,7 +80,10 @@ defmodule Paypal.MixProject do
       {:doctor, ">= 0.0.0", only: [:dev, :test], runtime: false},
       {:ex_check, "~> 0.14", only: [:dev, :test], runtime: false},
       {:ex_doc, ">= 0.0.0", only: [:dev, :test], runtime: false},
-      {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false}
+      {:mix_audit, ">= 0.0.0", only: [:dev, :test], runtime: false},
+      # Tidewave
+      {:tidewave, "~> 0.4", only: :dev},
+      {:bandit, "~> 1.0", only: :dev}
     ]
   end
 

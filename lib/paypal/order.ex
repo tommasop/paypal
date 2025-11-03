@@ -26,10 +26,14 @@ defmodule Paypal.Order do
   alias Paypal.Auth
   alias Paypal.Common.Error, as: OrderError
   alias Paypal.Order.Authorized
+  alias Paypal.Order.Callback
+  alias Paypal.Order.Confirm
   alias Paypal.Order.Create
   alias Paypal.Order.ExperienceContext
   alias Paypal.Order.Info
+  alias Paypal.Order.Patch
   alias Paypal.Order.PurchaseUnit
+  alias Paypal.Order.Tracker
 
   defp client do
     Tesla.client(middleware(), adapter())
@@ -56,6 +60,7 @@ defmodule Paypal.Order do
 
   defp get(uri), do: Tesla.get(client(), uri)
   defp post(uri, body), do: Tesla.post(client(), uri, body)
+  defp patch_request(uri, body), do: Tesla.patch(client(), uri, body)
 
   @doc """
   Statuses for the order. The order is following different states, we could
@@ -165,4 +170,111 @@ defmodule Paypal.Order do
         error
     end
   end
+
+  @doc """
+  Update an order using JSON Patch operations.
+  """
+  @spec patch(String.t(), [map()]) :: :ok | {:error, OrderError.t() | Ecto.Changeset.t()}
+  def patch(id, patch_operations) do
+    with {:ok, validated_patches} <- validate_patches(patch_operations),
+         {:ok, %_{status: 204}} <- patch_request("/orders/#{id}", validated_patches) do
+      :ok
+    else
+      {:ok, %_{body: response}} ->
+        {:error, OrderError.cast(response)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Confirm the payment source for an order.
+  """
+  @spec confirm(String.t(), map()) :: {:ok, Confirm.t()} | {:error, OrderError.t()}
+  def confirm(id, payment_source) do
+    case post("/orders/#{id}/confirm-payment-source", %{"payment_source" => payment_source}) do
+      {:ok, %_{status: code, body: response}} when code in 200..299 ->
+        {:ok, Confirm.cast(response)}
+
+      {:ok, %_{body: response}} ->
+        {:error, OrderError.cast(response)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Add tracking information to an order.
+  """
+  @spec track(String.t(), map()) :: :ok | {:error, OrderError.t() | Ecto.Changeset.t()}
+  def track(id, tracker_data) do
+    with {:ok, validated_tracker} <-
+           Tracker.changeset(tracker_data) |> Ecto.Changeset.apply_action(:insert),
+         {:ok, %_{status: 204}} <- post("/orders/#{id}/track", validated_tracker) do
+      :ok
+    else
+      {:error, changeset} ->
+        {:error, changeset}
+
+      {:ok, %_{body: response}} ->
+        {:error, OrderError.cast(response)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Update an order with callback information.
+  """
+  @spec callback(String.t(), map()) :: {:ok, Callback.t()} | {:error, OrderError.t()}
+  def callback(id, callback_data) do
+    # Basic validation - callback_url is required
+    if Map.has_key?(callback_data, "callback_url") or Map.has_key?(callback_data, :callback_url) do
+      case post("/orders/#{id}/order-update-callback", callback_data) do
+        {:ok, %_{status: code, body: response}} when code in 200..299 ->
+          {:ok, Callback.cast(response)}
+
+        {:ok, %_{body: response}} ->
+          {:error, OrderError.cast(response)}
+
+        {:error, _} = error ->
+          error
+      end
+    else
+      {:error,
+       %Ecto.Changeset{
+         valid?: false,
+         errors: [callback_url: {"can't be blank", [validation: :required]}]
+       }}
+    end
+  end
+
+  defp validate_patches(patch_operations) when is_list(patch_operations) do
+    validated_patches =
+      Enum.map(patch_operations, fn patch_op ->
+        case Patch.changeset(patch_op) |> Ecto.Changeset.apply_action(:insert) do
+          {:ok, validated_patch} ->
+            Map.from_struct(validated_patch)
+            |> Map.take([:op, :path, :value, :from])
+            |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+            |> Map.new()
+
+          {:error, changeset} ->
+            {:error, changeset}
+        end
+      end)
+
+    errors = Enum.filter(validated_patches, &match?({:error, _}, &1))
+
+    if errors != [] do
+      {:error, hd(errors)}
+    else
+      {:ok, validated_patches}
+    end
+  end
+
+  defp validate_patches(_), do: {:error, "patch_operations must be a list"}
 end

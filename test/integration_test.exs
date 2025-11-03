@@ -620,6 +620,85 @@ defmodule Paypal.IntegrationTest do
     }
 
     assert {:ok, payment_refund} == Paypal.Payment.refund("5MS70068BM212023M")
+
+    # Test reauthorize
+    Bypass.expect_once(
+      bypass,
+      "POST",
+      "/v2/payments/authorizations/27A385875N551040L/reauthorize",
+      fn conn ->
+        response(conn, 201, %{
+          "id" => "8AA831015G517922L",
+          "status" => "CREATED",
+          "amount" => %{
+            "currency_code" => "EUR",
+            "value" => "10.00"
+          },
+          "create_time" => "2024-05-08T22:22:22Z",
+          "update_time" => "2024-05-08T22:22:22Z",
+          "links" => [
+            %{
+              "href" =>
+                "https://api.sandbox.paypal.com/v2/payments/authorizations/8AA831015G517922L",
+              "rel" => "self",
+              "method" => "GET"
+            }
+          ]
+        })
+      end
+    )
+
+    assert {:ok, %Paypal.Payment.Info{id: "8AA831015G517922L", status: :created}} =
+             Paypal.Payment.reauthorize("27A385875N551040L")
+
+    # Test show_capture
+    Bypass.expect_once(bypass, "GET", "/v2/payments/captures/5MS70068BM212023M", fn conn ->
+      response(conn, 200, %{
+        "id" => "5MS70068BM212023M",
+        "status" => "COMPLETED",
+        "amount" => %{
+          "currency_code" => "EUR",
+          "value" => "10.00"
+        },
+        "final_capture" => true,
+        "create_time" => "2024-05-08T22:22:22Z",
+        "update_time" => "2024-05-08T22:22:22Z",
+        "links" => [
+          %{
+            "href" => "https://api.sandbox.paypal.com/v2/payments/captures/5MS70068BM212023M",
+            "rel" => "self",
+            "method" => "GET"
+          }
+        ]
+      })
+    end)
+
+    assert {:ok, %Paypal.Payment.Captured{id: "5MS70068BM212023M", status: :completed}} =
+             Paypal.Payment.show_capture("5MS70068BM212023M")
+
+    # Test show_refund
+    Bypass.expect_once(bypass, "GET", "/v2/payments/refunds/58K15806CS993444T", fn conn ->
+      response(conn, 200, %{
+        "id" => "58K15806CS993444T",
+        "status" => "COMPLETED",
+        "amount" => %{
+          "currency_code" => "EUR",
+          "value" => "10.00"
+        },
+        "create_time" => "2024-05-08T22:22:22Z",
+        "update_time" => "2024-05-08T22:22:22Z",
+        "links" => [
+          %{
+            "href" => "https://api.sandbox.paypal.com/v2/payments/refunds/58K15806CS993444T",
+            "rel" => "self",
+            "method" => "GET"
+          }
+        ]
+      })
+    end)
+
+    assert {:ok, %Paypal.Payment.Refund{id: "58K15806CS993444T", status: :completed}} =
+             Paypal.Payment.show_refund("58K15806CS993444T")
   end
 
   test "order authorized and voided", %{bypass: bypass} do

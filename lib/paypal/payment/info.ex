@@ -6,6 +6,7 @@ defmodule Paypal.Payment.Info do
 
   alias Paypal.Common.CurrencyValue
   alias Paypal.Common.Link
+  alias Paypal.Order.Payee
 
   @statuses [
     created: "CREATED",
@@ -36,9 +37,14 @@ defmodule Paypal.Payment.Info do
     field(:expiration_time, :utc_datetime)
     embeds_one(:amount, CurrencyValue)
     embeds_many(:links, Link)
-    # TODO
-    field(:payee, :map)
+    embeds_one(:payee, Payee)
     field(:status, Ecto.Enum, values: @statuses)
+    # TODO: seller_protection
+    field(:seller_protection, :map)
+    # TODO: network_transaction_reference
+    field(:network_transaction_reference, :map)
+    # TODO: supplementary_data
+    field(:supplementary_data, :map)
   end
 
   @doc false

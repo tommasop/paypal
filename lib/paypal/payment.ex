@@ -8,7 +8,9 @@ defmodule Paypal.Payment do
   alias Paypal.Auth
   alias Paypal.Common.Error, as: PaymentError
   alias Paypal.Payment.Captured
+  alias Paypal.Payment.CaptureRequest
   alias Paypal.Payment.Info
+  alias Paypal.Payment.ReauthorizeRequest
   alias Paypal.Payment.Refund
   alias Paypal.Payment.RefundRequest
 
@@ -36,7 +38,7 @@ defmodule Paypal.Payment do
   end
 
   defp get(uri), do: Tesla.get(client(), uri)
-  defp post(uri, body), do: Tesla.post(client(), uri, body)
+  defp post(uri, body, opts \\ []), do: Tesla.post(client(), uri, body, opts)
 
   @doc """
   Show information about the authorized order.
@@ -74,17 +76,40 @@ defmodule Paypal.Payment do
   @doc """
   Capture the authorized order. It's the final step to perform a payment with
   an authorized order.
+
+  ## Arguments
+
+    - `id` - The authorization ID.
+    - `body` - The request body with optional parameters.
+    - `headers` - Additional headers to send with the request.
+
+  ## Optional Parameters
+
+    - `invoice_id` - The API caller-provided external invoice number for this order.
+    - `note_to_payer` - An informational note about this settlement.
+    - `final_capture` - Indicates whether you can make additional captures against the authorized payment.
+    - `payment_instruction` - Any additional payment instructions to be consider during payment processing.
+    - `soft_descriptor` - The payment descriptor on the payer's account statement.
+    - `amount` - The amount to capture. If not specified, the full authorized amount is captured.
+
+  ## Optional Headers
+
+    - `PayPal-Request-Id` - A unique ID for the request.
+    - `Prefer` - Indicates the preferred response format.
+    - `PayPal-Auth-Assertion` - An assertion for the request.
   """
-  def capture(id) do
-    case post("/authorizations/#{id}/capture", "") do
-      {:ok, %_{status: code, body: response}} when code in 200..299 ->
-        {:ok, Captured.cast(response)}
+  def capture(id, body \\ %{}, headers \\ []) do
+    with {:ok, data} <- CaptureRequest.changeset(body) do
+      case post("/authorizations/#{id}/capture", data, headers: headers) do
+        {:ok, %_{status: code, body: response}} when code in 200..299 ->
+          {:ok, Captured.cast(response)}
 
-      {:ok, %_{body: response}} ->
-        {:error, PaymentError.cast(response)}
+        {:ok, %_{body: response}} ->
+          {:error, PaymentError.cast(response)}
 
-      {:error, _} = error ->
-        error
+        {:error, _} = error ->
+          error
+      end
     end
   end
 
@@ -97,6 +122,56 @@ defmodule Paypal.Payment do
            post("/captures/#{id}/refund", data) do
       {:ok, Refund.cast(response)}
     else
+      {:ok, %_{body: response}} ->
+        {:error, PaymentError.cast(response)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Reauthorizes an authorized payment, by ID. To ensure that funds are still available,
+  reauthorize a payment after its initial three-day honor period expires.
+  """
+  def reauthorize(id, body \\ %{}) do
+    with {:ok, data} <- ReauthorizeRequest.changeset(body),
+         {:ok, %_{status: code, body: response}} when code in 200..299 <-
+           post("/authorizations/#{id}/reauthorize", data) do
+      {:ok, Info.cast(response)}
+    else
+      {:ok, %_{body: response}} ->
+        {:error, PaymentError.cast(response)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Shows details for a captured payment, by ID.
+  """
+  def show_capture(id) do
+    case get("/captures/#{id}") do
+      {:ok, %_{status: 200, body: response}} ->
+        {:ok, Captured.cast(response)}
+
+      {:ok, %_{body: response}} ->
+        {:error, PaymentError.cast(response)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Shows details for a refund, by ID.
+  """
+  def show_refund(id) do
+    case get("/refunds/#{id}") do
+      {:ok, %_{status: 200, body: response}} ->
+        {:ok, Refund.cast(response)}
+
       {:ok, %_{body: response}} ->
         {:error, PaymentError.cast(response)}
 
