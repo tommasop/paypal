@@ -1,24 +1,23 @@
 defmodule Paypal.Auth.Worker do
   @moduledoc """
   The worker is performing the refresh of the token.
+
+  Uses lazy initialization - authenticates on first token request
+  rather than at startup, allowing runtime configuration.
   """
   use GenServer
   require Logger
   alias Paypal.Auth
-
   @time_when_fails 5
-
   @typedoc """
   The internal structure for the auth of Paypal is composed of
   a `access` entry (see `Paypal.Auth.Access.t()` for further information),
   and `timer_ref`, a reference for the current and active timer.
   """
-
   @type t() :: %__MODULE__{
           access: nil | Auth.Access.t(),
           timer_ref: nil | reference()
         }
-
   defstruct access: nil,
             timer_ref: nil
 
@@ -29,6 +28,8 @@ defmodule Paypal.Auth.Worker do
 
   @doc """
   Get the access token stored in the worker.
+
+  If no token exists, performs authentication first.
   """
   @spec get_token() :: {:ok, String.t()} | {:error, any()}
   def get_token, do: GenServer.call(__MODULE__, :get_token)
@@ -37,15 +38,12 @@ defmodule Paypal.Auth.Worker do
   Performs a manual refresh for the access token.
   """
   def refresh, do: send(__MODULE__, :refresh)
-
   @impl GenServer
   @doc false
   def init([]) do
-    if Application.get_env(:paypal, :auto_refresh, true) do
-      {:ok, %__MODULE__{}, {:continue, :refresh}}
-    else
-      {:ok, %__MODULE__{}}
-    end
+    # Lazy initialization: don't authenticate on startup
+    # Authentication happens on first :get_token request
+    {:ok, %__MODULE__{}}
   end
 
   @impl GenServer
@@ -71,7 +69,26 @@ defmodule Paypal.Auth.Worker do
   @impl GenServer
   @doc false
   def handle_call(:get_token, _from, %__MODULE__{access: nil} = state) do
-    {:reply, {:error, :notfound}, state}
+    # Lazy authentication: authenticate on first request
+    case Auth.Request.auth() do
+      {:ok, access_params} ->
+        {:ok, access} = Auth.Access.cast(access_params)
+
+        # Schedule auto-refresh if enabled
+        timer_ref =
+          if Application.get_env(:paypal, :auto_refresh, true) do
+            seconds = access.expires_in
+            Logger.info("generated new token that expires in #{seconds} seconds")
+            timeout = :timer.seconds(seconds)
+            Process.send_after(self(), :refresh, timeout)
+          end
+
+        new_state = %__MODULE__{access: access, timer_ref: timer_ref}
+        {:reply, {:ok, access.access_token}, new_state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 
   def handle_call(:get_token, _from, state) do

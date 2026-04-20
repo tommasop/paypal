@@ -3,6 +3,9 @@ defmodule Paypal.Auth.Request do
   Paypal requires to have an authenticated token to interact. This module
   helps to generate a token time to time (before it's expired) and ensure
   we have always the correct one.
+
+  Uses lazy config reading - config is read at request time, not at startup,
+  allowing runtime configuration.
   """
   require Logger
 
@@ -14,15 +17,14 @@ defmodule Paypal.Auth.Request do
     [
       {Tesla.Middleware.Logger,
        format: "$method $url ===> $status / time=$time", log_level: :debug},
-      {Tesla.Middleware.BaseUrl, Application.get_env(:paypal, :url)},
+      {Tesla.Middleware.BaseUrl, get_config_url()},
       {Tesla.Middleware.Headers,
        [
          {"content-type", "application/x-www-form-urlencoded"},
          {"accept-language", "en_US"}
        ]},
       {Tesla.Middleware.BasicAuth,
-       username: Application.get_env(:paypal, :client_id),
-       password: Application.get_env(:paypal, :secret)},
+       username: get_config_client_id(), password: get_config_secret()},
       Tesla.Middleware.DecodeJson
     ]
   end
@@ -40,5 +42,23 @@ defmodule Paypal.Auth.Request do
     with {:ok, %_{body: response}} <- post("/v1/oauth2/token", "grant_type=client_credentials") do
       {:ok, response}
     end
+  end
+
+  # ============================================================================
+  # Lazy Config Reading (like stripity_stripe pattern)
+  # ============================================================================
+  defp get_config_url do
+    Application.get_env(:paypal, :url) ||
+      raise ArgumentError, "PayPal URL not configured. Set :url in :paypal config."
+  end
+
+  defp get_config_client_id do
+    Application.get_env(:paypal, :client_id) ||
+      raise ArgumentError, "PayPal client_id not configured. Set :client_id in :paypal config."
+  end
+
+  defp get_config_secret do
+    Application.get_env(:paypal, :secret) ||
+      raise ArgumentError, "PayPal secret not configured. Set :secret in :paypal config."
   end
 end
