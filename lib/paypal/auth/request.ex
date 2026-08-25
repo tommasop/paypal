@@ -37,10 +37,22 @@ defmodule Paypal.Auth.Request do
 
   @doc """
   Perform the authorization and retrieve the response.
+
+  Only 2xx responses are treated as successful. For any other status the
+  raw HTTP status and body are returned as an error so callers can surface
+  the real reason (e.g. `invalid_client`) instead of a misleading
+  "blank fields" validation error.
   """
   def auth do
-    with {:ok, %_{body: response}} <- post("/v1/oauth2/token", "grant_type=client_credentials") do
-      {:ok, response}
+    case post("/v1/oauth2/token", "grant_type=client_credentials") do
+      {:ok, %_{status: status, body: response}} when status in 200..299 ->
+        {:ok, response}
+
+      {:ok, %_{status: status, body: response}} ->
+        {:error, %{status: status, body: response}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

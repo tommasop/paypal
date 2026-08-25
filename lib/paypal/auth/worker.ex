@@ -72,19 +72,23 @@ defmodule Paypal.Auth.Worker do
     # Lazy authentication: authenticate on first request
     case Auth.Request.auth() do
       {:ok, access_params} ->
-        {:ok, access} = Auth.Access.cast(access_params)
+        case Auth.Access.cast(access_params) do
+          {:ok, access} ->
+            # Schedule auto-refresh if enabled
+            timer_ref =
+              if Application.get_env(:paypal, :auto_refresh, true) do
+                seconds = access.expires_in
+                Logger.info("generated new token that expires in #{seconds} seconds")
+                timeout = :timer.seconds(seconds)
+                Process.send_after(self(), :refresh, timeout)
+              end
 
-        # Schedule auto-refresh if enabled
-        timer_ref =
-          if Application.get_env(:paypal, :auto_refresh, true) do
-            seconds = access.expires_in
-            Logger.info("generated new token that expires in #{seconds} seconds")
-            timeout = :timer.seconds(seconds)
-            Process.send_after(self(), :refresh, timeout)
-          end
+            new_state = %__MODULE__{access: access, timer_ref: timer_ref}
+            {:reply, {:ok, access.access_token}, new_state}
 
-        new_state = %__MODULE__{access: access, timer_ref: timer_ref}
-        {:reply, {:ok, access.access_token}, new_state}
+          {:error, reason} ->
+            {:reply, {:error, reason}, state}
+        end
 
       {:error, reason} ->
         {:reply, {:error, reason}, state}
