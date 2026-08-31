@@ -29,6 +29,27 @@ defmodule Paypal.OrderTest do
     :ok
   end
 
+  test "cancel posts to /v2/checkout/orders/:id/cancel", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v2/checkout/orders/PAYID-123/cancel", fn conn ->
+      Plug.Conn.send_resp(conn, 204, "")
+    end)
+
+    assert :ok = Paypal.Order.cancel("PAYID-123")
+  end
+
+  test "cancel surfaces PayPal errors", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v2/checkout/orders/PAYID-123/cancel", fn conn ->
+      response(conn, 422, %{
+        "name" => "UNPROCESSABLE_ENTITY",
+        "message" => "Order is not in approvable state",
+        "debug_id" => "dbg_cancel"
+      })
+    end)
+
+    assert {:error, %Paypal.Common.Error{debug_id: "dbg_cancel"}} =
+             Paypal.Order.cancel("PAYID-123")
+  end
+
   describe "patch/2" do
     test "successfully patches an order with valid data", %{bypass: bypass} do
       order_id = "5UY53123AX394662R"

@@ -59,7 +59,14 @@ defmodule Paypal.Order do
   end
 
   defp get(uri), do: Tesla.get(client(), uri)
-  defp post(uri, body), do: Tesla.post(client(), uri, body)
+
+  defp post(uri, body), do: post(uri, body, nil)
+
+  defp post(uri, body, request_id) do
+    headers = if request_id, do: [{"PayPal-Request-Id", request_id}], else: []
+    Tesla.post(client(), uri, body, headers: headers)
+  end
+
   defp patch_request(uri, body), do: Tesla.patch(client(), uri, body)
 
   @doc """
@@ -149,6 +156,25 @@ defmodule Paypal.Order do
     case post("/orders/#{id}/capture", "") do
       {:ok, %_{status: code, body: response}} when code in 200..299 ->
         {:ok, Info.cast(response)}
+
+      {:ok, %_{body: response}} ->
+        {:error, OrderError.cast(response)}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Cancels (voids) an order before capture.
+
+  Voiding is only possible while the order is in `CREATED` or `APPROVED` state.
+  """
+  @spec cancel(String.t(), String.t() | nil) :: :ok | {:error, OrderError.t() | String.t()}
+  def cancel(id, request_id \\ nil) do
+    case post("/orders/#{id}/cancel", "", request_id) do
+      {:ok, %_{status: code}} when code in 200..299 ->
+        :ok
 
       {:ok, %_{body: response}} ->
         {:error, OrderError.cast(response)}
