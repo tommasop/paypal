@@ -113,13 +113,18 @@ defmodule Paypal.Order do
   @doc """
   Create an order.
   """
-  @spec create(:capture | :authorize, [PurchaseUnit.t() | map()], ExperienceContext.t() | map()) ::
-          {:ok, Info.t()} | {:error, OrderError.t() | String.t()}
-  def create(intent, purchase_units, experience_context) do
+  @spec create(
+          :capture | :authorize,
+          [PurchaseUnit.t() | map()],
+          ExperienceContext.t() | map(),
+          String.t() | nil
+        ) :: {:ok, Info.t()} | {:error, OrderError.t() | String.t()}
+  def create(intent, purchase_units, experience_context, request_id \\ nil) do
     with {:ok, data} <- Create.changeset(%{intent: intent, purchase_units: purchase_units}),
          {:ok, context} <- ExperienceContext.changeset(experience_context),
          data = add_experience_context(data, context),
-         {:ok, %_{status: code, body: response}} when code in 200..299 <- post("/orders", data) do
+         {:ok, %_{status: code, body: response}} when code in 200..299 <-
+           post("/orders", data, request_id) do
       {:ok, Info.cast(response)}
     else
       {:ok, %_{body: response}} ->
@@ -152,8 +157,8 @@ defmodule Paypal.Order do
     end
   end
 
-  def capture(id) do
-    case post("/orders/#{id}/capture", "") do
+  def capture(id, request_id \\ nil) do
+    case post("/orders/#{id}/capture", "", request_id) do
       {:ok, %_{status: code, body: response}} when code in 200..299 ->
         {:ok, Info.cast(response)}
 

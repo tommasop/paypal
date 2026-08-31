@@ -50,6 +50,43 @@ defmodule Paypal.OrderTest do
              Paypal.Order.cancel("PAYID-123")
   end
 
+  test "create sends PayPal-Request-Id header when provided", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v2/checkout/orders", fn conn ->
+      assert Enum.any?(conn.req_headers, fn {k, v} ->
+               k == "paypal-request-id" and v == "order_42-create"
+             end)
+
+      response(conn, 201, %{"id" => "PAYID-123", "status" => "CREATED"})
+    end)
+
+    purchase_unit = %{amount: %{currency_code: "EUR", value: "10.00"}}
+
+    experience_context = %{
+      return_url: "https://example.com/return",
+      cancel_url: "https://example.com/cancel"
+    }
+
+    assert {:ok, _} =
+             Paypal.Order.create(:capture, [purchase_unit], experience_context, "order_42-create")
+  end
+
+  test "create without request_id sends no PayPal-Request-Id header", %{bypass: bypass} do
+    Bypass.expect_once(bypass, "POST", "/v2/checkout/orders", fn conn ->
+      refute Enum.any?(conn.req_headers, fn {k, _} -> k == "paypal-request-id" end)
+
+      response(conn, 201, %{"id" => "PAYID-123", "status" => "CREATED"})
+    end)
+
+    purchase_unit = %{amount: %{currency_code: "EUR", value: "10.00"}}
+
+    experience_context = %{
+      return_url: "https://example.com/return",
+      cancel_url: "https://example.com/cancel"
+    }
+
+    assert {:ok, _} = Paypal.Order.create(:capture, [purchase_unit], experience_context)
+  end
+
   describe "patch/2" do
     test "successfully patches an order with valid data", %{bypass: bypass} do
       order_id = "5UY53123AX394662R"

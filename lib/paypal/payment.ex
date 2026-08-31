@@ -116,10 +116,10 @@ defmodule Paypal.Payment do
   @doc """
   Performs a refund of the capture that was captured previously.
   """
-  def refund(id, body \\ %{}) do
+  def refund(id, body \\ %{}, headers \\ []) do
     with {:ok, data} <- RefundRequest.changeset(body),
          {:ok, %_{status: code, body: response}} when code in 200..299 <-
-           post("/captures/#{id}/refund", data) do
+           post("/captures/#{id}/refund", data, headers: headers) do
       {:ok, Refund.cast(response)}
     else
       {:ok, %_{body: response}} ->

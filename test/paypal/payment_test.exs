@@ -294,6 +294,27 @@ defmodule Paypal.PaymentTest do
     end
   end
 
+  describe "refund/2" do
+    test "refund forwards PayPal-Request-Id header", %{bypass: bypass} do
+      Bypass.expect_once(bypass, "POST", "/v2/payments/captures/CAP-123/refund", fn conn ->
+        assert Enum.any?(conn.req_headers, fn {k, v} ->
+                 k == "paypal-request-id" and v == "order_42-refund"
+               end)
+
+        response(conn, 201, %{
+          "id" => "REF-123",
+          "status" => "COMPLETED",
+          "amount" => %{"currency_code" => "EUR", "value" => "10.00"}
+        })
+      end)
+
+      body = %{"amount" => %{"currency_code" => "EUR", "value" => "10.00"}}
+
+      assert {:ok, _} =
+               Payment.refund("CAP-123", body, [{"PayPal-Request-Id", "order_42-refund"}])
+    end
+  end
+
   describe "show_capture/1" do
     test "successfully shows capture details", %{bypass: bypass} do
       capture_id = "8AC10462XH6416514"
